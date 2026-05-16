@@ -13,4 +13,13 @@ param location string
 resource resourceGroup 'Microsoft.Resources/resourceGroups@2021-04-01' = {
   name: rgName
   location: location
+  tags: {
+    Project: 'AzureInfraOpsLab'
+    Environment: 'Dev'
+    Owner: 'Gurdit'
+    ManagedBy: 'Bicep'
+    CostCenter: 'Learning'
+    Purpose: 'CloudInfraPortfolio'
+  }
 }
+

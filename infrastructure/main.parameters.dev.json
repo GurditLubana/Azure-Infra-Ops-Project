@@ -1,20 +1,21 @@
 {
-    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
     "contentVersion": "1.0.0.0",
     "parameters": {
         "resourceGroupNames" :{
             "value": [ "rg-aiol-network-dev-cc-001",
                         "rg-aiol-compute-dev-cc-001",
-                        "rg-aiol-ops-dev-cc-001"                
+                        "rg-aiol-ops-dev-cc-001"         
+                  
             ]
         },
 
         "location": {
             "value": "eastus2"
         },
-        
+
         "fallbackLocation": {
             "value": "westus2"
         }
     }
 }
+

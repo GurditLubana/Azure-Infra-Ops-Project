@@ -1,3 +1,3 @@
 git add .
-git commit -m "Declared the RG module in main.bicep"
+git commit -m "Added tags to RG.bicep"
 git push
