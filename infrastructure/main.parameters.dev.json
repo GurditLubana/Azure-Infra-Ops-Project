@@ -15,6 +15,21 @@
 
         "fallbackLocation": {
             "value": "westus2"
+        },
+
+        "vNetArray":{
+            "value": [
+
+                {"name": "vnet-aiol-dev-cc-001", 
+                "rgName": "rg-aiol-network-dev-cc-001", 
+                "addressPrefix": "10.20.0.0/16", 
+                "subnets": [ 
+                    {"name": "snet-mgmt-dev-cc-001", "addressPrefix": "10.20.1.0/24"}, 
+                    {"name": "snet-workload-dev-cc-001", "addressPrefix": "10.20.2.0/24"}, 
+                    {"name": "snet-private-dev-cc-001", "addressPrefix": "10.20.3.0/24"} 
+                    
+                    ] }
+            ]
         }
     }
 }
