@@ -1,36 +1,83 @@
 {
     "contentVersion": "1.0.0.0",
     "parameters": {
-        "resourceGroupNames" :{
-            "value": [ "rg-aiol-network-dev-cc-001",
-                        "rg-aiol-compute-dev-cc-001",
-                        "rg-aiol-ops-dev-cc-001"         
-                  
+        "resourceGroupNames": {
+            "value": [
+                "rg-aiol-network-dev-cc-001",
+                "rg-aiol-compute-dev-cc-001",
+                "rg-aiol-ops-dev-cc-001"
             ]
         },
-
         "location": {
             "value": "eastus2"
         },
-
         "fallbackLocation": {
             "value": "westus2"
         },
-
-        "vNetArray":{
+        "vNetArray": {
             "value": [
-
-                {"name": "vnet-aiol-dev-cc-001", 
-                "rgName": "rg-aiol-network-dev-cc-001", 
-                "addressPrefix": "10.20.0.0/16", 
-                "subnets": [ 
-                    {"name": "snet-mgmt-dev-cc-001", "addressPrefix": "10.20.1.0/24"}, 
-                    {"name": "snet-workload-dev-cc-001", "addressPrefix": "10.20.2.0/24"}, 
-                    {"name": "snet-private-dev-cc-001", "addressPrefix": "10.20.3.0/24"} 
-                    
-                    ] }
+                {
+                    "name": "vnet-aiol-dev-cc-001",
+                    "rgName": "rg-aiol-network-dev-cc-001",
+                    "addressPrefix": "10.20.0.0/16",
+                    "subnets": [
+                        {
+                            "name": "snet-mgmt-dev-cc-001",
+                            "addressPrefix": "10.20.1.0/24",
+                            "associatedNsgName": "nsg-mgmt-dev-cc-001"
+                        },
+                        {
+                            "name": "snet-workload-dev-cc-001",
+                            "addressPrefix": "10.20.2.0/24",
+                            "associatedNsgName": "nsg-workload-dev-cc-001"
+                        },
+                        {
+                            "name": "snet-private-dev-cc-001",
+                            "addressPrefix": "10.20.3.0/24",
+                            "associatedNsgName": "nsg-private-dev-cc-001"
+                        }
+                    ]
+                }
+            ]
+        },
+        "nsgRulesArray": {
+            "value": [
+                {
+                    "nsgName": "nsg-mgmt-dev-cc-001",
+                    "securityRules": [
+                        {
+                            "name": "Allow-SSH-From-AdminIP",
+                            "priority": 100,
+                            "direction": "Inbound",
+                            "access": "Allow",
+                            "protocol": "Tcp",
+                            "sourcePortRange": "*",
+                            "destinationPortRange": "22",
+                            "sourceAddressPrefix": "72.143.232.117/32",
+                            "destinationAddressPrefix": "*"
+                        },
+                        {
+                            "name": "Allow-RDP-From-AdminIP",
+                            "priority": 110,
+                            "direction": "Inbound",
+                            "access": "Allow",
+                            "protocol": "Tcp",
+                            "sourcePortRange": "*",
+                            "destinationPortRange": "3389",
+                            "sourceAddressPrefix": "72.143.232.117/32",
+                            "destinationAddressPrefix": "*"
+                        }
+                    ]
+                },
+                {
+                    "nsgName": "nsg-workload-dev-cc-001",
+                    "securityRules": []
+                },
+                {
+                    "nsgName": "nsg-private-dev-cc-001",
+                    "securityRules": []
+                }
             ]
         }
     }
 }
-

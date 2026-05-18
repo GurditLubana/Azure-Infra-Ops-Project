@@ -1,3 +1,3 @@
 git add .
-git commit -m "Added tags to network.bicep and also updated main.bicep to include the network module"
+git commit -m "Defined NSG rules in the nsg.bicep module and updated main.bicep to include NSG rules array parameter."
 git push
