@@ -17,6 +17,19 @@ module rgDeployment 'modules/resourceGrps.bicep' = [for rgName in resourceGroupN
 }]
 
 
+module nsgDeployment 'modules/nsg.bicep' = [for nsg in nsgRulesArray: {
+  name: 'deploy-${nsg.nsgName}'
+  scope: resourceGroup(nsg.rgName) // we are taking the output of the first module deployment, which is the RG name, and using it as the scope for this module deployment. This is because we want to deploy the NSG resources in the same RG that we just created.
+  dependsOn: [rgDeployment] // we want to make sure that the RG is created before we try to deploy the NSG resources, hence we are adding a dependency on the RG deployment.
+  params: {
+    nsgName: nsg.nsgName
+    location: location
+    securityRules: nsg.securityRules
+  }
+}
+]
+
+
 module networkDeployment 'modules/network.bicep' = [for vNet in vNetArray: {
   name: 'deploy-${vNet.name}'
   scope: resourceGroup(vNet.rgName) // we are taking the output of the first module deployment, which is the RG name, and using it as the scope for this module deployment. This is because we want to deploy the network resources in the same RG that we just created.
@@ -31,16 +44,6 @@ module networkDeployment 'modules/network.bicep' = [for vNet in vNetArray: {
 }
 ]
 
-module nsgDeployment 'modules/nsg.bicep' = [for nsg in nsgRulesArray: {
-  name: 'deploy-${nsg.name}'
-  scope: resourceGroup(nsg.rgName) // we are taking the output of the first module deployment, which is the RG name, and using it as the scope for this module deployment. This is because we want to deploy the NSG resources in the same RG that we just created.
-  dependsOn: [rgDeployment] // we want to make sure that the RG is created before we try to deploy the NSG resources, hence we are adding a dependency on the RG deployment.
-  params: {
-    nsgName: nsg.name
-    location: location
-    securityRules: nsg.securityRules
-  }
-}
-]
+
 
 

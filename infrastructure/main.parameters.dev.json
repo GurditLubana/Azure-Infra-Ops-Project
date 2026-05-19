@@ -11,15 +11,12 @@
         "location": {
             "value": "eastus2"
         },
-        "fallbackLocation": {
-            "value": "westus2"
-        },
         "vNetArray": {
             "value": [
                 {
                     "name": "vnet-aiol-dev-cc-001",
                     "rgName": "rg-aiol-network-dev-cc-001",
-                    "addressPrefix": "10.20.0.0/16",
+                    "addressSpace": "10.20.0.0/16",
                     "subnets": [
                         {
                             "name": "snet-mgmt-dev-cc-001",
@@ -44,6 +41,7 @@
             "value": [
                 {
                     "nsgName": "nsg-mgmt-dev-cc-001",
+                    "rgName": "rg-aiol-network-dev-cc-001",
                     "securityRules": [
                         {
                             "name": "Allow-SSH-From-AdminIP",
@@ -71,10 +69,12 @@
                 },
                 {
                     "nsgName": "nsg-workload-dev-cc-001",
+                    "rgName": "rg-aiol-network-dev-cc-001",
                     "securityRules": []
                 },
                 {
                     "nsgName": "nsg-private-dev-cc-001",
+                    "rgName": "rg-aiol-network-dev-cc-001",
                     "securityRules": []
                 }
             ]

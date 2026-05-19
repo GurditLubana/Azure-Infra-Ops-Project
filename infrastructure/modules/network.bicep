@@ -18,8 +18,8 @@ resource vnet 'Microsoft.Network/virtualNetworks@2021-05-01' = {
     subnets: [for subnet in subnetsArray: {
         name: subnet.name
         properties: {
-          addressPrefix: subnet.prefix
-          networkSecurityGroup: {id: subscriptionResourceId(nsgResourceGroup, 'Microsoft.Network/networkSecurityGroups', subnet.associatedNsgName)}
+          addressPrefix: subnet.addressPrefix
+          networkSecurityGroup: {id: resourceId(nsgResourceGroup, 'Microsoft.Network/networkSecurityGroups', subnet.associatedNsgName)}
         }
       }]
   }
