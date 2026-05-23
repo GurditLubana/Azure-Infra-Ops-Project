@@ -1,3 +1,3 @@
 git add .
-git commit -m "Deployed first Infrastructure as Code (IaC) using Bicep."
+git commit -m "Updated the location to westUS2 and redeployed the infrastructure."
 git push
