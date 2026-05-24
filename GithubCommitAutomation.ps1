@@ -1,3 +1,3 @@
 git add .
-git commit -m "Updated the location to westUS2 and redeployed the infrastructure."
+git commit -m "Generated compute.bicep and network.bicep files with outputs."
 git push
