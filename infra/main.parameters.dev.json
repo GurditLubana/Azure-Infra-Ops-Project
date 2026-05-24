@@ -66,6 +66,17 @@
                     "securityRules": []
                 }
             ]
+        },
+
+        "computeParameters": {
+            "value": {
+                "rgName": "rg-aiol-compute-dev-cc-001",
+                "publicIPName": "pip-aiol-linux-dev-cc-001",
+                "adminUsername": "azureuser",
+                "adminPublicKey": "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC7XG8qjLh5nqjH+9uYyVZt2i7r3L1mKz5sP4v6ZlXkJpXo9n5b",
+                "NICname": "nic-aiol-linux-dev-cc-001",
+                "linuxVMName": "vm-aiol-linux-dev-cc-001"
+            }
         }
     }
 }

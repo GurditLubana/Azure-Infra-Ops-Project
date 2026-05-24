@@ -4,6 +4,7 @@ param resourceGroupNames array
 param vNetArray array
 param nsgRulesArray array
 param location string
+param computeParameters object
 
 module rgDeployment 'modules/resourceGrps.bicep' = [for rgName in resourceGroupNames: {
 
@@ -45,4 +46,18 @@ module networkDeployment 'modules/network.bicep' = [for vNet in vNetArray: {
 ]
 
 
+module computeDeployment 'modules/compute.bicep' = {
+  name: 'deploy-compute'
+  scope: resourceGroup(computeParameters.rgName)
+  dependsOn: [networkDeployment] 
+  params: {
+    location: location
+    publicIPName: computeParameters.publicIPName
+    adminUsername: computeParameters.adminUsername
+    adminPublicKey: computeParameters.adminPublicKey
+    subnetID: networkDeployment[0].outputs.subnetIDs[1]
+    NICname: computeParameters.NICname
+    linuxVMName: computeParameters.linuxVMName
+  }
+}
 

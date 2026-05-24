@@ -1,3 +1,3 @@
 git add .
-git commit -m "Generated compute.bicep and network.bicep files with outputs."
+git commit -m "Updated main.bicep to include compute module and added parameters for compute deployment. "
 git push

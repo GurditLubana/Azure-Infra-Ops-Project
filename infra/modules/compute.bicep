@@ -84,6 +84,10 @@ resource linuxVM 'Microsoft.Compute/virtualMachines@2020-12-01' = {
       }
       osDisk: {
         createOption: 'FromImage'
+        name: '${linuxVMName}-osdisk'
+        managedDisk: {
+        storageAccountType: 'StandardSSD_LRS' 
+        }
       }
     }
     networkProfile: {
