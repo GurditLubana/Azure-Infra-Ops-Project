@@ -78,8 +78,8 @@ resource linuxVM 'Microsoft.Compute/virtualMachines@2020-12-01' = {
     storageProfile: {
       imageReference: {
         publisher: 'Canonical'
-        offer: 'UbuntuServer'
-        sku: '24.04-LTS'
+        offer: 'ubuntu-24_04-lts'
+        sku: 'server'
         version: 'latest'
       }
       osDisk: {

@@ -1,1075 +1,737 @@
+Great. Phase 4 is basically done: VM is deployed, network is working, and the VM is **Stopped (deallocated)**. That is exactly what I wanted to see.
 
-# Where you are right now
+Yes, West US 2 is fine. Just document this clearly later:
 
-You have completed **Phase 3: Foundation**.
+> I used West US 2 because my Azure for Students subscription had limited regional VM availability and this region supported a cheaper B-series Linux VM.
 
-You now have:
+Now we move to **Phase 5: Monitoring + Alerting**.
 
-```text
-Resource groups
-VNet
-Subnets
-NSGs
-Subnet-to-NSG associations
-Bicep modules
-Parameter file
-Successful subscription-scope deployment
-```
+# Phase 5 Goal
 
-That is a proper first IaC milestone.
+In simple words:
 
-Now we move into:
+> We are going to make your Azure lab observable.
 
-# Phase 4: Compute + Secure Access
+Right now, you can deploy infrastructure. That is good.
 
-This phase adds your first real workload:
+But cloud infrastructure work is not just deployment. Real cloud teams also need to know:
 
-```text
-One Linux VM
-One NIC
-One temporary public IP
-SSH key authentication
-Secure NSG access from only your IP
-Cost-control habit
-Basic VM screenshots
-```
+* Is the VM healthy?
+* Is CPU usage too high?
+* Did someone change an NSG?
+* Did someone start/stop a VM?
+* Who should be notified when something breaks?
+* Can we see logs and metrics in one place?
 
-Do **not** add Windows VM yet. Linux first.
+That is what Phase 5 teaches.
 
-Windows costs more, takes more resources, and adds more complexity. We’ll add it later only if it improves the project.
+Azure Monitor is Microsoft’s platform for collecting and analyzing telemetry so you can improve the performance and availability of cloud and on-prem resources. Log Analytics workspaces are used as a central place to collect and query log data. ([Microsoft Learn][1])
 
 ---
 
-# Phase 4 goal in simple words
-
-You are now going to place a small Linux server inside your Azure network.
-
-This will prove that your network is not just decoration. It actually supports compute.
-
-You will learn:
-
-* how VMs connect to subnets
-* how NICs work
-* how public IPs work
-* how SSH access works
-* how NSGs protect admin access
-* how Bicep modules pass outputs/IDs
-* how to avoid unnecessary cloud cost
-
-Microsoft describes Bicep as a declarative language for deploying Azure resources repeatedly and consistently, and modules are specifically meant to organize Bicep deployments into cleaner separate files. That is exactly what you are practicing now. ([Microsoft Learn][1])
-
----
-
-# Before Phase 4: small cleanup
-
-## 1. Delete or ignore `main.json`
-
-In your tree, I saw:
-
-```text
-infra/main.json
-```
-
-That file was probably generated when you ran:
-
-```powershell
-az bicep build
-```
-
-You usually do **not** need to commit generated ARM JSON if your source is Bicep.
-
-Add this to `.gitignore`:
-
-```text
-infra/main.json
-```
-
-Keep:
-
-```text
-infra/main.parameters.dev.json
-```
-
-Do **not** ignore your parameter file.
-
-## 2. Make sure your folders are lowercase
-
-You already renamed folders. Good.
-
-Final structure should look like:
-
-```text
-.github/
-diagrams/
-docs/
-infra/
-  main.bicep
-  main.parameters.dev.json
-  modules/
-scripts/
-screenshots/
-README.md
-Instructions.md or docs/
-```
-
-## 3. Commit Phase 3 before moving on
-
-Before changing anything, commit your working Phase 3.
-
-Suggested commit message:
-
-```text
-infra: deploy phase 3 foundation with bicep
-```
-
-Why? Because this gives you a clean checkpoint. If Phase 4 breaks something, you can compare or roll back.
-
----
-
-# Phase 4 design
-
-## VM choice
-
-Use:
-
-```text
-VM name: vm-aiol-linux-dev-cc-001
-OS: Ubuntu Server 22.04 LTS
-Size: Standard_B1s
-Authentication: SSH key
-Subnet: snet-workload-dev-cc-001
-Resource group: rg-aiol-compute-dev-cc-001
-Region: eastus2
-```
-
-If `Standard_B1s` is not available in your student subscription, try another small B-series size available to you. B-series VMs are designed for smaller/general-purpose workloads and use a CPU credit model, which makes them a reasonable fit for learning and dev/test scenarios. ([Microsoft Learn][2])
-
-Do **not** use expensive VM sizes.
-
-Avoid:
-
-```text
-D-series
-E-series
-F-series
-GPU VMs
-Premium SSD
-large Windows VMs
-```
-
----
-
-# Resource design for Phase 4
+# What you will build in Phase 5
 
 You will add these resources:
 
 ```text
-Public IP
-Network Interface Card
-Linux Virtual Machine
+Log Analytics Workspace
+Action Group
+VM CPU alert
+Activity Log alert for NSG changes
+Optional: Azure Monitor Agent + Data Collection Rule
 ```
 
-## 1. Public IP
-
-Purpose:
-
-```text
-Allows you to SSH into the VM from your laptop.
-```
-
-Keep it temporary.
-
-A public IP is convenient for learning, but it should be protected by NSG rules.
-
-## 2. NIC
-
-Purpose:
-
-```text
-Connects the VM to the subnet.
-```
-
-A VM does not directly attach to a subnet. The NIC does.
-
-The flow is:
-
-```text
-VM -> NIC -> Subnet -> VNet
-```
-
-## 3. Linux VM
-
-Purpose:
-
-```text
-This is your first compute workload inside your Azure infrastructure.
-```
-
-Use SSH key authentication, not password authentication.
+Do **not** overbuild this phase. Keep it clean and cheap.
 
 ---
 
-# Important security change before creating the VM
+# Before you start Phase 5
 
-Right now, your management NSG has SSH and RDP rules from your admin IP. That is not terrible, but I want you to improve the design.
+## 1. Confirm VM is deallocated
 
-For this phase:
-
-## Workload subnet should allow SSH
-
-Because the Linux VM will live in:
+You already showed:
 
 ```text
-snet-workload-dev-cc-001
+Stopped (deallocated)
 ```
 
-The SSH rule should belong to:
+Good.
 
-```text
-nsg-workload-dev-cc-001
-```
-
-So update your NSG thinking:
-
-```text
-nsg-workload-dev-cc-001
-  Allow SSH from your public IP only
-
-nsg-mgmt-dev-cc-001
-  Keep RDP closed for now
-  Later use it for Windows VM if needed
-
-nsg-private-dev-cc-001
-  No inbound public access
-```
-
-Best practice: only open access where it is actually needed.
-
-Do not allow:
-
-```text
-SSH from 0.0.0.0/0
-RDP from 0.0.0.0/0
-Any source *
-```
-
-This will also help your future PowerShell script `Find-RiskyNsgRules.ps1`, because that script will later check for exactly these risky rules.
+Keep it deallocated until you need to test alerts.
 
 ---
 
-# Files you will touch in Phase 4
+## 2. Fix tags on compute resources
 
-## 1. `compute.bicep`
-
-This module should create compute-related resources.
-
-It should eventually create:
+From your screenshot, the VM shows:
 
 ```text
-Public IP
+Tags: Add tags
+```
+
+That means your VM may not have tags applied.
+
+Before Phase 5, make sure these resources have your standard tags:
+
+```text
+VM
 NIC
-Linux VM
+Public IP
+OS disk if possible
 ```
 
-It should receive values from `main.bicep`, not hardcode everything.
+Tags should be:
 
-This file should **not** create the VNet or subnet. Those already exist in `network.bicep`.
+```text
+Project: AzureInfraOpsLab
+Environment: Dev
+Owner: Gurdit
+ManagedBy: Bicep
+Purpose: CloudInfraPortfolio
+```
 
-The compute module should take the workload subnet ID as input.
-
-### What you learn from this
-
-You learn how compute depends on networking.
-
-You also learn how one module can use information from another module.
-
-This is a real IaC skill.
+This matters because later your PowerShell health report can filter resources by tag.
 
 ---
 
-## 2. `network.bicep`
+## 3. Make sure SSH works
 
-You may need to update this file to output subnet IDs.
+Before monitoring, confirm you can SSH into the VM at least once.
 
-At minimum, it should output:
+Take a screenshot of:
 
 ```text
-workload subnet resource ID
-management subnet resource ID
-private subnet resource ID
+successful SSH connection
+hostname command output
+private IP check
+```
+
+Then deallocate the VM again.
+
+---
+
+# Files you will touch in Phase 5
+
+## `monitoring.bicep`
+
+This becomes the main file for Phase 5.
+
+It should create:
+
+```text
+Log Analytics Workspace
+Action Group
+Metric alert
+Activity log alert
+Optional Data Collection Rule
+```
+
+This file should be scoped to:
+
+```text
+rg-aiol-ops-dev-cc-001
+```
+
+Why? Because monitoring/operations resources belong in the ops resource group.
+
+---
+
+## `compute.bicep`
+
+You may need to update this file to output:
+
+```text
+Linux VM resource ID
+Linux VM name
+Linux VM resource group
 ```
 
 Why?
 
-Because `compute.bicep` needs the workload subnet ID to attach the NIC.
+Because monitoring needs to know which VM to monitor.
 
-The compute module should not guess where the subnet is. It should be passed the subnet ID cleanly.
+Your monitoring module should not guess the VM ID. It should receive it from the compute module.
 
-### What you learn from this
+---
 
-You learn module outputs.
+## `main.bicep`
 
-This is important because real projects often have modules like:
+This will connect the monitoring module.
+
+It should pass:
 
 ```text
-network module outputs subnet IDs
-compute module consumes subnet IDs
-monitoring module consumes VM IDs
-backup module consumes VM IDs
+VM resource ID
+location
+tags
+alert names
+workspace name
+action group email
+```
+
+from your main deployment into `monitoring.bicep`.
+
+---
+
+## `main.parameters.dev.json`
+
+Add non-sensitive monitoring values:
+
+```text
+log analytics workspace name
+action group name
+CPU alert name
+CPU threshold
+alert severity
+retention days
+```
+
+Be careful with your email address.
+
+Your email is not a password, but it is personal information. If you do not want your email public on GitHub, put the email in:
+
+```text
+main.parameters.local.json
+```
+
+and keep that file ignored by Git.
+
+---
+
+# Phase 5 resources and what each one does
+
+## 1. Log Analytics Workspace
+
+Name suggestion:
+
+```text
+law-aiol-dev-wus2-001
+```
+
+Purpose:
+
+```text
+Central place to store logs and query monitoring data.
+```
+
+This is where VM logs, activity logs, and agent data can go later.
+
+Keep retention low/default for cost control.
+
+Do **not** enable:
+
+```text
+Microsoft Sentinel
+Defender paid plans
+extra solutions
+large data collection
+```
+
+Those can increase cost.
+
+---
+
+## 2. Action Group
+
+Name suggestion:
+
+```text
+ag-aiol-dev-wus2-001
+```
+
+Purpose:
+
+```text
+Defines who gets notified when an alert fires.
+```
+
+For your lab, use email notification only.
+
+Action groups define notification and automation actions for Azure Monitor alerts, such as email, webhook, Azure Functions, and similar actions. ([Microsoft Learn][2])
+
+Use your personal email, but again, use a local parameter file if you don’t want it committed.
+
+---
+
+## 3. CPU Metric Alert
+
+Name suggestion:
+
+```text
+alert-aiol-linux-highcpu-dev-wus2-001
+```
+
+Purpose:
+
+```text
+Trigger alert when Linux VM CPU goes above a threshold.
+```
+
+For real-world style:
+
+```text
+Threshold: 80%
+Window: 5 minutes
+Severity: 3
+Target: Linux VM
+Action: email action group
+```
+
+For testing, you can temporarily lower the threshold to something like 5% or 10% so it triggers quickly. After testing, set it back to 80%.
+
+---
+
+## 4. Activity Log Alert for NSG Changes
+
+Name suggestion:
+
+```text
+alert-aiol-nsg-change-dev-wus2-001
+```
+
+Purpose:
+
+```text
+Trigger alert when someone modifies or deletes an NSG.
+```
+
+Why this is good:
+
+NSGs control network access. If someone changes an NSG, that can be a security issue.
+
+This is a very strong project detail because it shows security awareness.
+
+Monitor for operations like:
+
+```text
+Network Security Group write
+Network Security Group delete
+Security rule write
+Security rule delete
+```
+
+Target scope:
+
+```text
+rg-aiol-network-dev-cc-001
+```
+
+Action:
+
+```text
+Send email through action group
 ```
 
 ---
 
-## 3. `main.bicep`
+## 5. Optional: Azure Monitor Agent + Data Collection Rule
 
-This is where you connect the compute module.
+This is useful, but do not rush it.
 
-Your `main.bicep` should:
+Azure automatically collects host metrics and activity logs from Azure VMs, but guest OS logs require extra collection setup using Azure Monitor Agent and Data Collection Rules. ([Microsoft Learn][3])
+
+So divide it like this:
+
+## Phase 5A: Required
 
 ```text
-Deploy resource groups
-Deploy NSGs
-Deploy network
-Deploy compute after network exists
-Pass workload subnet ID into compute module
+Log Analytics Workspace
+Action Group
+CPU alert
+NSG change alert
 ```
 
-The compute module should depend on the network deployment.
+## Phase 5B: Optional after 5A works
 
-Do not deploy compute before networking exists.
+```text
+Azure Monitor Agent
+Data Collection Rule
+Linux syslog collection
+DCR association to VM
+```
 
-### What you learn from this
-
-You learn deployment order and dependency thinking.
+I suggest doing **5A first**. Then we can decide if you want 5B.
 
 ---
 
-## 4. `main.parameters.dev.json`
+# Step-by-step plan
 
-Add VM-related values here.
+## Step 1: Create a Phase 5 branch
 
-Add values like:
-
-```text
-linuxVmName
-linuxVmSize
-adminUsername
-adminPublicKey
-publicIpName
-nicName
-osDiskType
-```
-
-Do not put private keys in this file.
-
-The public key is safe to store, but the private key is not.
-
-Never commit:
+Use a new branch:
 
 ```text
-private key
-password
-client secret
-.pfx file
-.pem private key
-```
-
----
-
-# SSH key setup
-
-For Linux VM access, use SSH key authentication.
-
-You need:
-
-```text
-Private key: stays on your laptop
-Public key: goes into Azure VM configuration
-```
-
-Think of it like this:
-
-```text
-Azure VM stores your public key.
-Your laptop keeps the private key.
-When you connect, Azure checks if both match.
-```
-
-Do not paste your private key into GitHub.
-
-Do not upload your private key.
-
-Do not put your private key in Bicep.
-
-Only the public key goes into the deployment.
-
----
-
-# Phase 4 step-by-step instructions
-
-## Step 1: Create a new branch
-
-Do this before Phase 4 changes.
-
-Branch idea:
-
-```text
-feature/phase-4-linux-vm
+feature/phase-5-monitoring
 ```
 
 Why?
 
-Because now you are adding compute. If you break something, your Phase 3 main branch stays clean.
+You now have working Phase 4 infra. Don’t break it directly.
 
-What you learn:
-
-```text
-Basic Git workflow
-Safe infrastructure change process
-```
+Time: 5 minutes.
 
 ---
 
-## Step 2: Update your NSG design
+## Step 2: Update parameters
 
-Move SSH access to the workload NSG.
+Add monitoring-related values to your dev parameter file.
 
-Your final Phase 4 NSG design should be:
-
-```text
-nsg-workload-dev-cc-001
-  Allow SSH from your IP only
-
-nsg-mgmt-dev-cc-001
-  No public inbound access for now
-  RDP rule can be added later only when Windows VM exists
-
-nsg-private-dev-cc-001
-  No public inbound access
-```
-
-Keep the source as your current public IP with `/32`.
-
-Example concept:
+Add things like:
 
 ```text
-source = your-ip/32
-destination port = 22
-protocol = TCP
-access = Allow
-direction = Inbound
+workspace name
+action group name
+CPU alert name
+NSG alert name
+CPU threshold
+alert severity
+retention setting
 ```
 
-Do not copy this as code. Just use the concept in your Bicep/parameter structure.
+If using your email, put it in a local-only parameter file.
 
-What you learn:
-
-```text
-Least privilege access
-Subnet-specific NSG design
-Cloud security basics
-```
-
-Time:
-
-```text
-30–60 minutes
-```
+Time: 30 minutes.
 
 ---
 
-## Step 3: Add subnet outputs in `network.bicep`
+## Step 3: Add outputs from compute module
 
-You need the workload subnet ID.
+Your compute module should output the Linux VM resource ID.
 
-Your network module should output:
+The monitoring module needs that VM ID.
 
-```text
-workload subnet ID
-management subnet ID
-private subnet ID
-```
-
-Since your subnets are inside an array, this may take some thinking.
-
-You can approach it in either of these ways:
-
-## Option A: Simple approach
-
-Output the VNet name and rebuild the subnet resource ID in `main.bicep`.
-
-This is easier but less clean.
-
-## Option B: Better approach
-
-Output the actual subnet IDs from `network.bicep`.
-
-This is cleaner and more professional.
-
-I recommend Option B.
-
-What you learn:
+Expected concept:
 
 ```text
-How Bicep modules share data
-How subnet IDs are passed into other modules
+compute module creates VM
+compute module outputs VM ID
+main.bicep passes VM ID to monitoring module
+monitoring module creates alert against VM ID
 ```
 
-Time:
-
-```text
-1–2 hours
-```
+Time: 30–60 minutes.
 
 ---
 
-## Step 4: Plan `compute.bicep`
+## Step 4: Build Log Analytics Workspace
 
-Before writing the file, write comments or notes inside it.
+In `monitoring.bicep`, create the Log Analytics Workspace inside the ops resource group.
 
-List what the module will create:
+Keep it simple.
 
-```text
-1. Public IP
-2. NIC
-3. Linux VM
-```
+Do not add advanced solutions yet.
 
-Also list what values it needs:
+Expected result:
 
 ```text
-location
-tags
-vm name
-vm size
-admin username
-admin public key
-subnet ID
-public IP name
-NIC name
-OS disk type
+rg-aiol-ops-dev-cc-001
+  law-aiol-dev-wus2-001
 ```
 
-Do not start coding until this is clear.
-
-What you learn:
-
-```text
-Infrastructure planning before coding
-Module input design
-```
-
-Time:
-
-```text
-30 minutes
-```
+Time: 1 hour.
 
 ---
 
-## Step 5: Build the public IP resource
+## Step 5: Build Action Group
 
-Purpose:
+Create one action group that sends alert emails to you.
 
-```text
-The public IP gives your VM an internet-reachable address for SSH.
-```
-
-But it is only safe because your NSG allows SSH only from your IP.
-
-For this project, use:
+Expected result:
 
 ```text
-Public IP name: pip-aiol-linux-dev-cc-001
-SKU: Standard
-Allocation: Static
+ag-aiol-dev-wus2-001
 ```
 
-Why static?
+This will be used by both CPU alert and NSG change alert.
 
-Standard public IPs are static by default and work cleanly with NSG-secured access.
-
-Important: public IPs can create small charges depending on SKU and usage. Do not leave unused public IPs around forever. Once the project is done, we can either keep it for screenshots or remove it and document why.
-
-What you learn:
-
-```text
-Public access design
-Azure networking dependencies
-Cost awareness
-```
-
-Time:
-
-```text
-30–60 minutes
-```
+Time: 1 hour.
 
 ---
 
-## Step 6: Build the NIC resource
+## Step 6: Build CPU alert
 
-Purpose:
+Create a metric alert for the Linux VM.
+
+Target:
 
 ```text
-The NIC connects the VM to the workload subnet.
+vm-aiol-linux-dev-cc-001
 ```
 
-The NIC should use:
+Condition:
 
 ```text
-Subnet: snet-workload-dev-cc-001
-Public IP: pip-aiol-linux-dev-cc-001
-Private IP: dynamic
+CPU percentage greater than threshold
 ```
 
-Do not manually set a private IP yet. Let Azure assign it.
-
-What you learn:
+Action:
 
 ```text
-How VMs connect to Azure networks
-NIC-to-subnet relationship
-Public/private IP relationship
-```
-
-Time:
-
-```text
-30–60 minutes
-```
-
----
-
-## Step 7: Build the Linux VM resource
-
-Use:
-
-```text
-VM name: vm-aiol-linux-dev-cc-001
-Size: Standard_B1s
-OS: Ubuntu Server 22.04 LTS
-Authentication: SSH key
-Disk: Standard SSD LRS or Standard HDD LRS
-Admin username: choose a simple non-root name
-```
-
-Do not use password authentication.
-
-Do not use username:
-
-```text
-admin
-root
-test
-azureuser if you want to be more professional
-```
-
-Use something like:
-
-```text
-cloudadmin
-```
-
-What you learn:
-
-```text
-Azure VM configuration
-OS images
-SSH authentication
-Disk selection
-Cost-aware sizing
-```
-
-Time:
-
-```text
-2–3 hours
-```
-
----
-
-## Step 8: Connect compute module in `main.bicep`
-
-Your `main.bicep` now needs to call:
-
-```text
-compute.bicep
-```
-
-The compute module should be scoped to:
-
-```text
-rg-aiol-compute-dev-cc-001
-```
-
-It should receive:
-
-```text
-workload subnet ID
-location
-tags
-VM settings
-```
-
-It should depend on the network deployment.
-
-What you learn:
-
-```text
-Cross-resource-group deployment
-Module dependency flow
-Subscription-scope orchestration
-```
-
-Time:
-
-```text
-1 hour
-```
-
----
-
-## Step 9: Validate locally
-
-Run your usual local checks:
-
-```text
-Bicep build
-Bicep lint
+send email using action group
 ```
 
 Expected result:
 
 ```text
-No syntax errors
-No missing module paths
-No missing parameters
+Alert rule exists under Azure Monitor
+Alert targets your Linux VM
+Alert uses your action group
 ```
 
-If the build generates `main.json`, do not commit it unless you intentionally want to.
-
-What you learn:
-
-```text
-Local IaC validation
-Debugging before deployment
-```
-
-Time:
-
-```text
-30 minutes to 2 hours depending on errors
-```
+Time: 1–2 hours.
 
 ---
 
-## Step 10: Run Azure validate and what-if
+## Step 7: Build NSG change alert
 
-Run:
+Create an activity log alert for NSG changes.
 
-```text
-Azure deployment validate
-Azure deployment what-if
-```
-
-Do not deploy yet.
-
-Read the what-if output carefully.
-
-Expected new resources:
+Scope:
 
 ```text
-Public IP
-NIC
-Linux VM
-Possible NSG rule update
+rg-aiol-network-dev-cc-001
 ```
 
-You should not see:
+Condition:
 
 ```text
-Delete VNet
-Delete NSGs
-Delete resource groups
-Modify random resources
-Create expensive services
+NSG write/delete or security rule write/delete
 ```
 
-What you learn:
+Action:
 
 ```text
-Safe deployment workflow
-Change review before deployment
+send email using same action group
 ```
-
-Time:
-
-```text
-30 minutes
-```
-
----
-
-## Step 11: Deploy Phase 4
-
-After what-if looks clean, deploy.
 
 Expected result:
 
 ```text
-VM created
-NIC created
-Public IP created
-NSG updated
+If someone changes an NSG rule, alert notification is sent.
 ```
 
-What you learn:
-
-```text
-Real Azure compute deployment using IaC
-```
-
-Time:
-
-```text
-15–30 minutes deployment
-More time if debugging
-```
+Time: 1–2 hours.
 
 ---
 
-## Step 12: Connect to the VM using SSH
+## Step 8: Validate and deploy
 
-After deployment:
-
-1. Go to the VM in Azure Portal.
-2. Copy the public IP.
-3. Use your private key from your laptop.
-4. SSH into the VM.
-
-If SSH fails, check:
+Run your normal process:
 
 ```text
-Is the VM running?
-Is public IP attached?
-Is NIC in the workload subnet?
-Is workload NSG allowing port 22 from your IP?
-Did your public IP change?
-Is the private key correct?
-Is the username correct?
+bicep build
+bicep lint
+deployment validate
+what-if if useful
+deployment create
 ```
 
-What you learn:
+Since you now have nested modules, what-if may still show some limitations. If validate passes and the changes look expected, that is okay.
+
+Expected created/updated resources:
 
 ```text
-Cloud troubleshooting
-Networking path validation
-SSH authentication troubleshooting
+Log Analytics Workspace
+Action Group
+Metric Alert
+Activity Log Alert
+Possibly updated VM outputs or tags
 ```
 
-Time:
-
-```text
-1–2 hours if this is your first time
-```
+Time: 30 minutes to 2 hours depending on errors.
 
 ---
 
-## Step 13: Run a few Linux checks
+## Step 9: Test CPU alert
 
-After SSH works, run simple checks inside the VM:
+Start the VM only for testing.
 
-```text
-hostname
-IP address
-disk usage
-memory usage
-running services
-package update check
-```
-
-Do not install random software yet.
-
-Just prove that the VM is reachable and healthy.
-
-What you learn:
+Then either:
 
 ```text
-Basic Linux VM admin
-Operational validation
+temporarily lower CPU threshold
 ```
 
-Time:
+or run a temporary CPU-heavy command inside the Linux VM.
+
+The safer beginner method:
 
 ```text
-30 minutes
+Lower threshold temporarily
+Wait for alert
+Confirm email arrives
+Set threshold back to normal
 ```
+
+After testing:
+
+```text
+deallocate the VM again
+```
+
+Time: 30–60 minutes.
 
 ---
 
-## Step 14: Deallocate the VM
+## Step 10: Test NSG change alert
 
-This is very important.
+Make a harmless NSG rule change.
 
-After testing, stop/deallocate the VM from Azure.
-
-Do not just shut it down from inside Linux.
-
-Microsoft explains that VM billing depends on VM power state. Stopped/deallocated is different from just stopped, and deallocation is what stops compute billing. Storage may still cost money because disks remain allocated. ([Microsoft Learn][3])
-
-What you learn:
+Example:
 
 ```text
-Cost control
-Cloud operations discipline
+change description
+add/remove a test rule
 ```
 
-Time:
+Then wait for email alert.
 
-```text
-5 minutes
-```
+After test, revert the change through Bicep, not manually.
+
+Important: If you manually change something in the portal, your IaC becomes out of sync. That is called drift.
+
+This is a good chance to learn infrastructure drift.
+
+Time: 30–60 minutes.
 
 ---
 
-## Step 15: Take screenshots
+## Step 11: Take screenshots
 
 Create:
 
 ```text
-screenshots/phase-04-compute/
+screenshots/phase-05-monitoring/
 ```
 
 Take screenshots of:
 
 ```text
-01-vm-overview.png
-02-vm-networking.png
-03-nic-overview.png
-04-public-ip.png
-05-workload-nsg-ssh-rule.png
-06-successful-ssh-session.png
-07-vm-stopped-deallocated.png
+01-log-analytics-workspace.png
+02-action-group.png
+03-cpu-alert-rule.png
+04-nsg-change-alert-rule.png
+05-alert-email-received.png
+06-monitor-alerts-overview.png
+07-vm-metrics.png
 ```
 
-These screenshots will make your final project documentation much stronger.
+If you add Azure Monitor Agent later:
+
+```text
+08-data-collection-rule.png
+09-vm-agent-extension.png
+10-log-query-result.png
+```
 
 ---
 
-## Step 16: Update your personal notes
+## Step 12: Update your notes
 
-Add what you learned:
+In your personal notes, write what you learned.
+
+Add simple notes like:
 
 ```text
-I learned how a VM connects to a subnet through a NIC.
-I learned how public IP + NSG + SSH key access work together.
-I learned why source IP restriction matters.
-I learned how to deallocate VMs to reduce compute cost.
-I learned how compute modules depend on networking modules.
+I learned that Azure Monitor can collect VM platform metrics without guest agent setup.
+I learned that Log Analytics Workspace stores log data for querying.
+I learned that action groups define who gets notified when alerts fire.
+I learned how to create a CPU metric alert for a VM.
+I learned how to create an Activity Log alert for NSG changes.
+I learned the difference between metric alerts and activity log alerts.
 ```
-
-This is for your own learning.
-
-Later we will turn this into a professional README.
 
 ---
 
-## Step 17: Commit Phase 4
+## Step 13: Commit Phase 5
 
-Suggested commit messages:
+Suggested commits:
 
 ```text
-infra: add linux vm compute module
-infra: add secure ssh access for workload subnet
-docs: add phase 4 compute screenshots
+infra: add log analytics workspace
+infra: add action group for alert notifications
+infra: add vm cpu metric alert
+infra: add nsg activity log alert
+docs: add phase 5 monitoring screenshots
 ```
-
-Do not make one giant commit if you can avoid it.
 
 ---
 
-# How much time should you spend on Phase 4?
+# How long should Phase 5 take?
 
-For your first time, give yourself:
-
-```text
-2 to 4 days
-```
-
-or roughly:
+Realistic time:
 
 ```text
-6 to 10 focused hours
+1 to 3 days
 ```
 
-Do not rush. This phase teaches real cloud infrastructure fundamentals.
-
-A good pace:
+If you are learning slowly and carefully:
 
 ```text
-Day 1: NSG cleanup + subnet outputs
-Day 2: compute module planning + VM Bicep
-Day 3: validate, what-if, deploy
-Day 4: SSH test, screenshots, notes, commit
+5 to 8 focused hours
 ```
 
-If it takes a week, that is still fine.
+Don’t rush it.
+
+This phase is not hard, but alerts can take time to test because Azure Monitor is not always instant.
 
 ---
 
-# What not to do yet
+# Cost warning
 
-Do not add:
+This phase can create small costs if you collect logs heavily.
+
+To stay safe:
 
 ```text
-Windows VM
-Backup
-Log Analytics
-Azure Monitor Agent
-GitHub Actions deployment
-Terraform
-Kubernetes
-Bastion
-Azure Firewall
-NAT Gateway
-Load Balancer
-Private Endpoints
+keep VM deallocated when not testing
+do not enable Sentinel
+do not enable Defender paid features
+do not collect all syslog/debug logs
+do not leave CPU stress running
+keep Log Analytics usage low
 ```
 
-Not yet.
+Phase 5A should be low-cost.
 
-Build cleanly, one phase at a time.
+Phase 5B with guest logs can cost more if you collect too much data.
 
 ---
 
-# What we will do after Phase 4
+# What Phase 5 teaches you
 
-After your Linux VM is deployed and tested, we move to:
-
-# Phase 5: Monitoring and Alerting
-
-You will add:
+This phase teaches:
 
 ```text
-Log Analytics Workspace
-Azure Monitor Agent
-Data Collection Rule
-VM metrics/log collection
-CPU alert
-VM stopped/deallocated alert
-Action group email notification
+Cloud monitoring
+Alerting
+Operational visibility
+Action groups
+Metrics vs logs
+Activity log monitoring
+Basic incident detection
+Cost-aware monitoring
 ```
 
-Azure Monitor automatically collects host metrics and activity logs for Azure VMs, but guest OS logs require Azure Monitor Agent and data collection rules. ([Microsoft Learn][4])
+This is very relevant for:
 
-That phase will make your project look much closer to real cloud operations.
+```text
+Cloud Support Engineer
+Azure Administrator
+Cloud Operations Analyst
+Infrastructure Support Analyst
+Junior Cloud Infrastructure Engineer
+```
 
-After that:
+---
+
+# What we do after Phase 5
+
+After monitoring is done, we move to:
 
 # Phase 6: PowerShell Automation
 
-You will build:
+You will finally build your scripts:
 
 ```text
 Get-AzureInfraHealth.ps1
@@ -1077,71 +739,46 @@ Find-RiskyNsgRules.ps1
 Start-Stop-VMs.ps1
 ```
 
-This is where your project becomes personal to your background, because you already like PowerShell automation.
+This will connect directly to your strength: PowerShell automation.
 
 After that:
 
-# Phase 7: CI/CD
+# Phase 7: GitHub Actions CI/CD
 
-You will add GitHub Actions:
+You will add:
 
 ```text
-Bicep build
-Bicep lint
-what-if on pull request
+Bicep validation workflow
+Bicep lint workflow
+what-if workflow
 manual deployment workflow
 ```
 
-We will not auto-deploy expensive resources on every push. We’ll make deployment manual and controlled.
-
 After that:
 
-# Phase 8: Final Documentation
+# Phase 8: Final README + Resume Bullets
 
-We will write the real polished README:
-
-```text
-Architecture
-Project goal
-Screenshots
-Deployment steps
-Security decisions
-Cost-control decisions
-Lessons learned
-Resume bullet points
-Interview explanation
-```
-
-That final README will be the version hiring managers see.
+We will turn the project into something polished for GitHub and your resume.
 
 ---
 
-# My honest take
+# My recommendation for you right now
 
-You are doing this correctly.
-
-You are not rushing into “cool” cloud services. You are learning the foundation:
+Do **Phase 5A only** first:
 
 ```text
-IaC
-resource groups
-networking
-NSGs
-VMs
-secure access
-cost control
-documentation
+Log Analytics Workspace
+Action Group
+CPU alert
+NSG change alert
 ```
 
-That is exactly the base you need for cloud infrastructure roles.
+Do not add Azure Monitor Agent or DCR yet.
 
-Your next real challenge is this:
+Once 5A works, we decide if 5B is worth it.
 
-> Can you deploy one Linux VM into your existing network securely, using Bicep, without opening SSH to the whole internet?
+That keeps the project clean, cost-safe, and still very resume-friendly.
 
-That is your Phase 4 mission.
-
-[1]: https://learn.microsoft.com/en-us/azure/azure-resource-manager/bicep/overview?utm_source=chatgpt.com "What is Bicep? - Azure Resource Manager | Microsoft Learn"
-[2]: https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/general-purpose/b-family?utm_source=chatgpt.com "B family VM size series - Azure Virtual Machines"
-[3]: https://learn.microsoft.com/en-us/azure/virtual-machines/states-billing?utm_source=chatgpt.com "States and billing status of Azure Virtual Machines"
-[4]: https://learn.microsoft.com/en-us/azure/azure-monitor/vm/data-collection?utm_source=chatgpt.com "Collect guest log data from virtual machines with Azure Monitor"
+[1]: https://learn.microsoft.com/en-us/azure/azure-monitor/?utm_source=chatgpt.com "Azure Monitor documentation - Azure Monitor | Microsoft Learn"
+[2]: https://learn.microsoft.com/en-us/azure/azure-monitor/alerts/action-groups?utm_source=chatgpt.com "Create and manage action groups in Azure Monitor - Azure Monitor"
+[3]: https://learn.microsoft.com/en-us/azure/azure-monitor/vm/data-collection?utm_source=chatgpt.com "Collect guest log data from virtual machines with Azure Monitor"

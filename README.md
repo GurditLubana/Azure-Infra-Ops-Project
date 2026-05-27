@@ -220,3 +220,63 @@ There are no VMs, disks, public IPs, backup vaults, or Log Analytics workspaces 
 So this phase should not create meaningful cost.
 
 Still, I should check Azure Cost Management regularly.
+
+Create a new SSH key pair.
+
+Run this in PowerShell:
+
+ssh-keygen -t ed25519 -f $env:USERPROFILE\.ssh\aiol-linux-vm-key
+
+When it asks for a passphrase:
+
+Enter passphrase:
+
+For this lab, you can just press Enter.
+
+Then press Enter again to confirm.
+
+After that, run:
+
+dir $env:USERPROFILE\.ssh
+
+You should now see:
+
+aiol-linux-vm-key
+aiol-linux-vm-key.pub
+
+Meaning:
+
+aiol-linux-vm-key      = private key, NEVER commit
+aiol-linux-vm-key.pub  = public key
+Then view your public key
+
+Run:
+
+type $env:USERPROFILE\.ssh\aiol-linux-vm-key.pub
+
+Copy the full line.
+
+It should start with:
+
+ssh-ed25519
+Then update Azure
+
+Fastest fix:
+
+Go to:
+
+Azure Portal
+VM
+Help
+Reset password
+Mode: Reset SSH public key
+Username: azureuser
+Paste your public key
+Update
+
+Then connect:
+
+
+after deploying the VM, use the command below to connect to the VM
+
+ssh -i $env:USERPROFILE\.ssh\aiol-linux-vm-key azureuser@PUBLICIPADDRESS

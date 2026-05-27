@@ -1,20 +1,21 @@
 az bicep build --file .\infra\main.bicep
 
 az deployment sub validate `
-    --name azurevalidateV3 `
+    --name validation4 `
     --location westus2 `
     --template-file .\infra\main.bicep `
     --parameters "@.\infra\main.parameters.dev.json"
 
 az deployment sub what-if `
-  --name azphase4-whatif `
-  --location westus2  `
+  --name testingphasewhatif `
+  --location westus2 `
   --template-file .\infra\main.bicep `
-  --parameters "@.\infra\main.parameters.dev.json"
+  --parameters "@.\infra\main.parameters.dev.json" `
+  --result-format FullResourcePayloads
 
 
 az deployment sub create `
-  --name infraDeploymentV3 `
+  --name testingInfraDeploymentV6 `
   --location westus2 `
   --template-file .\infra\main.bicep `
   --parameters "@.\infra\main.parameters.dev.json"

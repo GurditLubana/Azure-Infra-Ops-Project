@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.43.8.12551",
-      "templateHash": "13494344706350611597"
+      "templateHash": "17432571013197831507"
     }
   },
   "parameters": {
@@ -20,6 +20,9 @@
     },
     "location": {
       "type": "string"
+    },
+    "computeParameters": {
+      "type": "object"
     }
   },
   "resources": [
@@ -201,7 +204,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.43.8.12551",
-              "templateHash": "15816887072294423829"
+              "templateHash": "1796628405711903285"
             }
           },
           "parameters": {
@@ -250,11 +253,183 @@
                 }
               }
             }
-          ]
+          ],
+          "outputs": {
+            "subnetIDs": {
+              "type": "array",
+              "copy": {
+                "count": "[length(range(0, length(parameters('subnetsArray'))))]",
+                "input": "[reference(resourceId('Microsoft.Network/virtualNetworks', parameters('vnetName')), '2021-05-01').subnets[range(0, length(parameters('subnetsArray')))[copyIndex()]].id]"
+              }
+            }
+          }
         }
       },
       "dependsOn": [
         "rgDeployment"
+      ]
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
+      "name": "deploy-compute",
+      "resourceGroup": "[parameters('computeParameters').rgName]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "publicIPName": {
+            "value": "[parameters('computeParameters').publicIPName]"
+          },
+          "adminUsername": {
+            "value": "[parameters('computeParameters').adminUsername]"
+          },
+          "adminPublicKey": {
+            "value": "[parameters('computeParameters').adminPublicKey]"
+          },
+          "subnetID": {
+            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('vNetArray')[0].rgName), 'Microsoft.Resources/deployments', format('deploy-{0}', parameters('vNetArray')[0].name)), '2025-04-01').outputs.subnetIDs.value[1]]"
+          },
+          "NICname": {
+            "value": "[parameters('computeParameters').NICname]"
+          },
+          "linuxVMName": {
+            "value": "[parameters('computeParameters').linuxVMName]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.43.8.12551",
+              "templateHash": "12952871476252981274"
+            }
+          },
+          "parameters": {
+            "location": {
+              "type": "string"
+            },
+            "publicIPName": {
+              "type": "string"
+            },
+            "subnetID": {
+              "type": "string"
+            },
+            "NICname": {
+              "type": "string"
+            },
+            "linuxVMName": {
+              "type": "string"
+            },
+            "adminUsername": {
+              "type": "string"
+            },
+            "adminPublicKey": {
+              "type": "string"
+            }
+          },
+          "resources": [
+            {
+              "type": "Microsoft.Network/publicIPAddresses",
+              "apiVersion": "2020-11-01",
+              "name": "[parameters('publicIPName')]",
+              "location": "[parameters('location')]",
+              "sku": {
+                "name": "Standard"
+              },
+              "properties": {
+                "publicIPAllocationMethod": "Static",
+                "publicIPAddressVersion": "IPv4"
+              }
+            },
+            {
+              "type": "Microsoft.Network/networkInterfaces",
+              "apiVersion": "2020-11-01",
+              "name": "[parameters('NICname')]",
+              "location": "[parameters('location')]",
+              "properties": {
+                "ipConfigurations": [
+                  {
+                    "name": "ipconfig1",
+                    "properties": {
+                      "privateIPAllocationMethod": "Dynamic",
+                      "publicIPAddress": {
+                        "id": "[resourceId('Microsoft.Network/publicIPAddresses', parameters('publicIPName'))]"
+                      },
+                      "subnet": {
+                        "id": "[parameters('subnetID')]"
+                      }
+                    }
+                  }
+                ]
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Network/publicIPAddresses', parameters('publicIPName'))]"
+              ]
+            },
+            {
+              "type": "Microsoft.Compute/virtualMachines",
+              "apiVersion": "2020-12-01",
+              "name": "[parameters('linuxVMName')]",
+              "location": "[parameters('location')]",
+              "properties": {
+                "hardwareProfile": {
+                  "vmSize": "Standard_B2ats_v2"
+                },
+                "osProfile": {
+                  "computerName": "[parameters('linuxVMName')]",
+                  "adminUsername": "[parameters('adminUsername')]",
+                  "linuxConfiguration": {
+                    "disablePasswordAuthentication": true,
+                    "ssh": {
+                      "publicKeys": [
+                        {
+                          "path": "[format('/home/{0}/.ssh/authorized_keys', parameters('adminUsername'))]",
+                          "keyData": "[parameters('adminPublicKey')]"
+                        }
+                      ]
+                    }
+                  }
+                },
+                "storageProfile": {
+                  "imageReference": {
+                    "publisher": "Canonical",
+                    "offer": "UbuntuServer",
+                    "sku": "24.04-LTS",
+                    "version": "latest"
+                  },
+                  "osDisk": {
+                    "createOption": "FromImage",
+                    "name": "[format('{0}-osdisk', parameters('linuxVMName'))]",
+                    "managedDisk": {
+                      "storageAccountType": "StandardSSD_LRS"
+                    }
+                  }
+                },
+                "networkProfile": {
+                  "networkInterfaces": [
+                    {
+                      "id": "[resourceId('Microsoft.Network/networkInterfaces', parameters('NICname'))]"
+                    }
+                  ]
+                }
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Network/networkInterfaces', parameters('NICname'))]"
+              ]
+            }
+          ]
+        }
+      },
+      "dependsOn": [
+        "networkDeployment"
       ]
     }
   ]
