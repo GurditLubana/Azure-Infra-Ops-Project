@@ -77,6 +77,16 @@
                 "NICname": "nic-aiol-linux-dev-cc-001",
                 "linuxVMName": "vm-aiol-linux-dev-cc-001"
             }
+        },
+
+        "monitoringParameters": {
+            "value": {
+                "lawRgName": "rg-aiol-ops-dev-cc-001", 
+                "nsgAlertRGname": "rg-aiol-network-dev-cc-001",
+                "workspaceName": "law-aiol-dev-wus2-001",
+                "actionGroupName": "ag-aiol-dev-wus2-001",
+                "actionGroupEmail": "gurditrajat13@gmail.com"
+            }
         }
     }
 }

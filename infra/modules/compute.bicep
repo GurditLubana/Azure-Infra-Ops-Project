@@ -101,3 +101,4 @@ resource linuxVM 'Microsoft.Compute/virtualMachines@2020-12-01' = {
 }
 
 
+output LinuxVMObject array = [linuxVM.id, linuxVM.name]

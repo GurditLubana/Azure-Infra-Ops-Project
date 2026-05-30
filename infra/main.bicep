@@ -5,6 +5,7 @@ param vNetArray array
 param nsgRulesArray array
 param location string
 param computeParameters object
+param monitoringParameters object
 
 module rgDeployment 'modules/resourceGrps.bicep' = [for rgName in resourceGroupNames: {
 
@@ -60,4 +61,7 @@ module computeDeployment 'modules/compute.bicep' = {
     linuxVMName: computeParameters.linuxVMName
   }
 }
+
+
+
 
