@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.43.8.12551",
-      "templateHash": "17432571013197831507"
+      "templateHash": "1567252601747400292"
     }
   },
   "parameters": {
@@ -22,6 +22,9 @@
       "type": "string"
     },
     "computeParameters": {
+      "type": "object"
+    },
+    "monitoringParameters": {
       "type": "object"
     }
   },
@@ -309,7 +312,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.43.8.12551",
-              "templateHash": "12952871476252981274"
+              "templateHash": "16472448433689809761"
             }
           },
           "parameters": {
@@ -401,8 +404,8 @@
                 "storageProfile": {
                   "imageReference": {
                     "publisher": "Canonical",
-                    "offer": "UbuntuServer",
-                    "sku": "24.04-LTS",
+                    "offer": "ubuntu-24_04-lts",
+                    "sku": "server",
                     "version": "latest"
                   },
                   "osDisk": {
@@ -425,11 +428,222 @@
                 "[resourceId('Microsoft.Network/networkInterfaces', parameters('NICname'))]"
               ]
             }
-          ]
+          ],
+          "outputs": {
+            "LinuxVMobject": {
+              "type": "array",
+              "value": [
+                "[resourceId('Microsoft.Compute/virtualMachines', parameters('linuxVMName'))]",
+                "[parameters('linuxVMName')]"
+              ]
+            }
+          }
         }
       },
       "dependsOn": [
         "networkDeployment"
+      ]
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
+      "name": "deploy-monitoring",
+      "resourceGroup": "[parameters('monitoringParameters').rgName]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "targetVMid": {
+            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('computeParameters').rgName), 'Microsoft.Resources/deployments', 'deploy-compute'), '2025-04-01').outputs.LinuxVMobject.value[0]]"
+          },
+          "alertName": {
+            "value": "[parameters('monitoringParameters').alertName]"
+          },
+          "workspaceName": {
+            "value": "[parameters('monitoringParameters').workspaceName]"
+          },
+          "actionGroupEmail": {
+            "value": "[parameters('monitoringParameters').actionGroupEmail]"
+          },
+          "actionGroupName": {
+            "value": "[parameters('monitoringParameters').actionGroupName]"
+          },
+          "alertMetricName": {
+            "value": "[parameters('monitoringParameters').alertMetricName]"
+          },
+          "altertMetricOperator": {
+            "value": "[parameters('monitoringParameters').altertMetricOperator]"
+          },
+          "altertMetricThreshold": {
+            "value": "[parameters('monitoringParameters').altertMetricThreshold]"
+          },
+          "activityLogAlertName": {
+            "value": "[parameters('monitoringParameters').activityLogAlertName]"
+          },
+          "nsgAlertRGname": {
+            "value": "[parameters('monitoringParameters').nsgAlertRGname]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.43.8.12551",
+              "templateHash": "5927786327696039886"
+            }
+          },
+          "parameters": {
+            "location": {
+              "type": "string"
+            },
+            "targetVMid": {
+              "type": "string"
+            },
+            "alertName": {
+              "type": "string"
+            },
+            "workspaceName": {
+              "type": "string"
+            },
+            "actionGroupEmail": {
+              "type": "string"
+            },
+            "actionGroupName": {
+              "type": "string"
+            },
+            "alertMetricName": {
+              "type": "string"
+            },
+            "altertMetricOperator": {
+              "type": "string"
+            },
+            "altertMetricThreshold": {
+              "type": "int"
+            },
+            "activityLogAlertName": {
+              "type": "string"
+            },
+            "nsgAlertRGname": {
+              "type": "string"
+            }
+          },
+          "resources": [
+            {
+              "type": "Microsoft.OperationalInsights/workspaces",
+              "apiVersion": "2020-08-01",
+              "name": "[parameters('workspaceName')]",
+              "location": "[parameters('location')]",
+              "properties": {
+                "sku": {
+                  "name": "PerGB2018"
+                },
+                "retentionInDays": 30
+              }
+            },
+            {
+              "type": "microsoft.insights/actionGroups",
+              "apiVersion": "2019-06-01",
+              "name": "[parameters('actionGroupName')]",
+              "location": "global",
+              "properties": {
+                "groupShortName": "aiol-ops",
+                "enabled": true,
+                "emailReceivers": [
+                  {
+                    "name": "AdminEmail",
+                    "emailAddress": "[parameters('actionGroupEmail')]"
+                  }
+                ]
+              }
+            },
+            {
+              "type": "Microsoft.Insights/metricAlerts",
+              "apiVersion": "2018-03-01",
+              "name": "[parameters('alertName')]",
+              "location": "global",
+              "properties": {
+                "description": "Alert for CPU usage",
+                "severity": 3,
+                "enabled": true,
+                "scopes": [
+                  "[parameters('targetVMid')]"
+                ],
+                "evaluationFrequency": "PT1M",
+                "windowSize": "PT5M",
+                "criteria": {
+                  "odata.type": "Microsoft.Azure.Monitor.SingleResourceMultipleMetricCriteria",
+                  "allOf": [
+                    {
+                      "criterionType": "StaticThresholdCriterion",
+                      "name": "HighPercentageMemory",
+                      "metricName": "[parameters('alertMetricName')]",
+                      "metricNamespace": "Microsoft.Compute/virtualMachines",
+                      "operator": "[parameters('altertMetricOperator')]",
+                      "threshold": "[parameters('altertMetricThreshold')]",
+                      "timeAggregation": "Average"
+                    }
+                  ]
+                },
+                "actions": [
+                  {
+                    "actionGroupId": "[resourceId('microsoft.insights/actionGroups', parameters('actionGroupName'))]"
+                  }
+                ]
+              },
+              "dependsOn": [
+                "[resourceId('microsoft.insights/actionGroups', parameters('actionGroupName'))]"
+              ]
+            },
+            {
+              "type": "Microsoft.Insights/activityLogAlerts",
+              "apiVersion": "2020-10-01",
+              "name": "[parameters('activityLogAlertName')]",
+              "location": "global",
+              "properties": {
+                "description": "Alert for NSG rule changes",
+                "enabled": true,
+                "scopes": [
+                  "[resourceId('Microsoft.Resources/resourceGroups', parameters('nsgAlertRGname'))]"
+                ],
+                "condition": {
+                  "allOf": [
+                    {
+                      "field": "category",
+                      "equals": "Administrative"
+                    },
+                    {
+                      "field": "operationName",
+                      "containsAny": [
+                        "Microsoft.Network/networkSecurityGroups/securityRules/write",
+                        "Microsoft.Network/networkSecurityGroups/securityRules/delete"
+                      ]
+                    }
+                  ]
+                },
+                "actions": {
+                  "actionGroups": [
+                    {
+                      "actionGroupId": "[resourceId('microsoft.insights/actionGroups', parameters('actionGroupName'))]"
+                    }
+                  ]
+                }
+              },
+              "dependsOn": [
+                "[resourceId('microsoft.insights/actionGroups', parameters('actionGroupName'))]"
+              ]
+            }
+          ]
+        }
+      },
+      "dependsOn": [
+        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('computeParameters').rgName), 'Microsoft.Resources/deployments', 'deploy-compute')]"
       ]
     }
   ]

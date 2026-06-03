@@ -66,10 +66,9 @@ module computeDeployment 'modules/compute.bicep' = {
 module monitoringDeployment 'modules/monitoring.bicep' = {
   name: 'deploy-monitoring'
   scope: resourceGroup(monitoringParameters.rgName)
-  dependsOn: [computeDeployment]
   params: {
     location: location
-    targetVM: monitoringParameters.targetVM
+    targetVMid: computeDeployment.outputs.LinuxVMobject[0]
     alertName: monitoringParameters.alertName
     workspaceName: monitoringParameters.workspaceName
     actionGroupEmail: monitoringParameters.actionGroupEmail
@@ -80,6 +79,5 @@ module monitoringDeployment 'modules/monitoring.bicep' = {
     activityLogAlertName: monitoringParameters.activityLogAlertName
     nsgAlertRGname: monitoringParameters.nsgAlertRGname
   }
-  
   }
 

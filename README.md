@@ -252,7 +252,7 @@ Then view your public key
 
 Run:
 
-type $env:USERPROFILE\.ssh\aiol-linux-vm-key.pub
+type $env:USERPROFILE\\.ssh\aiol-linux-vm-key.pub
 
 Copy the full line.
 
@@ -279,4 +279,4 @@ Then connect:
 
 after deploying the VM, use the command below to connect to the VM
 
-ssh -i $env:USERPROFILE\.ssh\aiol-linux-vm-key azureuser@PUBLICIPADDRESS
+ssh -i $env:USERPROFILE\\.ssh\aiol-linux-vm-key azureuser@PUBLICIPADDRESS

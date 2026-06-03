@@ -1,5 +1,5 @@
 param location string
-param targetVM string
+param targetVMid string
 param alertName string
 param workspaceName string
 param actionGroupEmail string
@@ -36,18 +36,18 @@ resource actionGroup 'Microsoft.Insights/actionGroups@2019-06-01' = {
     ]
   }
 }
-
+  
 
 
 resource metricalertsAlert 'Microsoft.Insights/metricalerts@2018-03-01' = {
   name: alertName
-  location: location
+  location: 'global'
   properties: {
     description: 'Alert for CPU usage'
     severity: 3
     enabled: true
     scopes: [
-       resourceId('Microsoft.Compute/virtualMachines', targetVM)
+      targetVMid
     ]
     evaluationFrequency: 'PT1M'
     windowSize: 'PT5M'
@@ -93,10 +93,15 @@ resource activityLogAlert 'Microsoft.Insights/activityLogAlerts@2020-10-01' = {
           equals: 'Administrative'
         }
         {
-          field: 'operationName'
-          containsAny: [
-            'Microsoft.Network/networkSecurityGroups/securityRules/write'
-            'Microsoft.Network/networkSecurityGroups/securityRules/delete'
+          anyOf: [
+            {
+              field: 'operationName'
+              equals: 'Microsoft.Network/networkSecurityGroups/securityRules/write'
+            }
+            {
+              field: 'operationName'
+              equals: 'Microsoft.Network/networkSecurityGroups/securityRules/delete'
+            }
           ]
         }
       ]
