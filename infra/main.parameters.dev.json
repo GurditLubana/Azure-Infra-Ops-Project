@@ -81,11 +81,18 @@
 
         "monitoringParameters": {
             "value": {
+                "rgName": "rg-aiol-ops-dev-cc-001",
                 "lawRgName": "rg-aiol-ops-dev-cc-001", 
                 "nsgAlertRGname": "rg-aiol-network-dev-cc-001",
                 "workspaceName": "law-aiol-dev-wus2-001",
+                "alertName": "CPU_Usage_Alert",
                 "actionGroupName": "ag-aiol-dev-wus2-001",
-                "actionGroupEmail": "gurditrajat13@gmail.com"
+                "actionGroupEmail": "gurditrajat13@gmail.com",
+                "alertMetricName": "Percentage CPU",
+                "altertMetricOperator": "GreaterThan",
+                "altertMetricThreshold": 5,
+                "activityLogAlertName": "ala-nsg-rule-changes-dev-cc-001",
+                "targetVM": "vm-aiol-linux-dev-cc-001"
             }
         }
     }

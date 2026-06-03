@@ -1,6 +1,6 @@
 param location string
 param targetVM string
-param alertNames array
+param alertName string
 param workspaceName string
 param actionGroupEmail string
 param actionGroupName string
@@ -39,7 +39,7 @@ resource actionGroup 'Microsoft.Insights/actionGroups@2019-06-01' = {
 
 
 
-resource metricalertsAlert 'Microsoft.Insights/metricalerts@2018-03-01' = [for alertName in alertNames: {
+resource metricalertsAlert 'Microsoft.Insights/metricalerts@2018-03-01' = {
   name: alertName
   location: location
   properties: {
@@ -72,7 +72,7 @@ resource metricalertsAlert 'Microsoft.Insights/metricalerts@2018-03-01' = [for a
     ]
   }
 }
-]
+
 
 
 

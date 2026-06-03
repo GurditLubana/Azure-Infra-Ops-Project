@@ -63,5 +63,23 @@ module computeDeployment 'modules/compute.bicep' = {
 }
 
 
-
+module monitoringDeployment 'modules/monitoring.bicep' = {
+  name: 'deploy-monitoring'
+  scope: resourceGroup(monitoringParameters.rgName)
+  dependsOn: [computeDeployment]
+  params: {
+    location: location
+    targetVM: monitoringParameters.targetVM
+    alertName: monitoringParameters.alertName
+    workspaceName: monitoringParameters.workspaceName
+    actionGroupEmail: monitoringParameters.actionGroupEmail
+    actionGroupName: monitoringParameters.actionGroupName
+    alertMetricName: monitoringParameters.alertMetricName
+    altertMetricOperator: monitoringParameters.altertMetricOperator
+    altertMetricThreshold: monitoringParameters.altertMetricThreshold
+    activityLogAlertName: monitoringParameters.activityLogAlertName
+    nsgAlertRGname: monitoringParameters.nsgAlertRGname
+  }
+  
+  }
 

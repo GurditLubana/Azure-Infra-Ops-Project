@@ -1,3 +1,3 @@
 git add .
-git commit -m "Created Monitoring module and added activity log alert for NSG rule changes"
+git commit -m "Updated main.bicep and main.parameters.dev.json files to include new monitoring parameters and alert configuration for CPU usage and NSG rule write operations."
 git push
