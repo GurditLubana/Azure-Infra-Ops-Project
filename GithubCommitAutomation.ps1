@@ -1,3 +1,3 @@
 git add .
-git commit -m "Created a file Get-AzureInfraHealth.ps1 and added code to check for resource groups in the subscription."
+git commit -m "Updated Get-AzureInfraHealth.ps1 to include NSG checks."
 git push
