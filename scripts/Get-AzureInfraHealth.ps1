@@ -217,14 +217,98 @@ function NSGCheck {
 }
 
 
+function VMcheck {
 
+    $rg = "rg-aiol-compute-dev-cc-001"
+    $vmList = az vm list -g $rg | ConvertFrom-Json
+
+    $expectedVMs = @{
+    "vm-aiol-linux-dev-cc-001" = @{
+        ResourceGroup = "rg-aiol-compute-dev-cc-001"
+        Location      = "westus2"
+        Size = "Standard_B2ats_v2"
+        OStype = "Linux"
+        PowerState = "VM deallocated"
+        ProvisioningState = "Succeeded"
+        
+    
+
+    }
+}
+
+    $vmCount = $vmList.length
+
+    if ($vmCount -gt 0) {
+        Write-Host "`nVM exists in the Resource Group: $rg." -ForegroundColor Green
+    }
+    else {
+        Write-Host "`nThere are no VMs in the Resource Group: $rg." -ForegroundColor Red
+    }
+    
+
+    $vmList | Foreach-Object {
+        # $_
+        $vmName = $_.name
+        $vmLocation = $_.location
+        $vmSize = $_.hardwareProfile.vmSize
+        $vmProvisioningState = $_.provisioningState
+        $vmOS = $_.storageProfile.osDisk.osType
+        
+        
+        if($expectedVMs.Keys -notcontains $vmName){
+            Write-host "VM $vmname is not expected." -ForegroundColor Red
+        }
+        else {
+            Write-host "VM $vmname is expected." -ForegroundColor Green
+
+            $vmStatus = az vm get-instance-view -g $rg -n $vmName --query "instanceView.statuses[1].displayStatus" -o tsv
+
+            if($vmLocation -ne $expectedVMs[$vmName].Location){
+                Write-host "VM $vmname is not in the correct location. Expected: $($expectedVMs[$vmName].Location), Actual: $vmLocation" -ForegroundColor Red
+            }
+            else {
+                Write-host "VM $vmname is in the correct location: $($expectedVMs[$vmName].Location)." -ForegroundColor Green
+            }
+
+            if($vmSize -ne $expectedVMs[$vmName].Size){
+                Write-host "VM $vmname is not the correct size. Expected: $($expectedVMs[$vmName].Size), Actual: $vmSize" -ForegroundColor Red
+            }
+            else {
+                Write-host "VM $vmname is the correct size: $($expectedVMs[$vmName].Size)." -ForegroundColor Green
+            }
+
+            if($vmStatus -ne $expectedVMs[$vmName].PowerState){
+                Write-host "VM $vmname is not in the correct power state. Expected: $($expectedVMs[$vmName].PowerState), Actual: $vmStatus" -ForegroundColor Red
+            }
+            else {
+                Write-host "VM $vmname is in the correct power state: $($expectedVMs[$vmName].PowerState)." -ForegroundColor Green
+            }
+
+            if($vmProvisioningState -ne $expectedVMs[$vmName].ProvisioningState){
+                Write-host "VM $vmname is not in the correct provisioning state. Expected: $($expectedVMs[$vmName].ProvisioningState), Actual: $vmProvisioningState" -ForegroundColor Red
+            }
+            else {
+                Write-host "VM $vmname is in the correct provisioning state: $($expectedVMs[$vmName].ProvisioningState)." -ForegroundColor Green
+            }
+
+            if($vmOS -ne $expectedVMs[$vmName].OStype){
+                Write-host "VM $vmname is not the correct OS type. Expected: $($expectedVMs[$vmName].OStype), Actual: $vmOS `n" -ForegroundColor Red
+            }
+            else {
+                Write-host "VM $vmname is the correct OS type: $($expectedVMs[$vmName].OStype).`n" -ForegroundColor Green
+            }
+
+        }
+    }
+
+}
 
 function Get-AzureInfraHealth {
 
-    # ResourceGroupCheck
-    # VNetCheck
+    ResourceGroupCheck
+    VNetCheck
     NSGCheck
-
+    VMcheck
 }
 
 
